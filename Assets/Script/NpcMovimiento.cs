@@ -1,6 +1,6 @@
 using System.Collections;
 using UnityEngine;
-
+using UnityEngine.AI;
 using TMPro;
 
 public class NPCMovement : MonoBehaviour
@@ -11,8 +11,13 @@ public class NPCMovement : MonoBehaviour
     public Canvas dialogCanvas;
     public TMP_Text dialogText;
 
+    private NavMeshAgent agent;
+    private bool isPaused;
+
     private void Start()
     {
+        agent = GetComponent<NavMeshAgent>();
+
         if (movePoints.Length > 0)
         {
             StartCoroutine(MoveBetweenPoints());
@@ -23,39 +28,39 @@ public class NPCMovement : MonoBehaviour
     {
         while (true)
         {
-            Transform targetPoint = movePoints[currentPointIndex];
-            yield return StartCoroutine(MoveTo(targetPoint.position));
+            if (!isPaused)
+            {
+                Transform targetPoint = movePoints[currentPointIndex];
+                agent.SetDestination(targetPoint.position);
 
-          
-            yield return new WaitForSeconds(timeAtEachPoint);
 
-           
-            currentPointIndex = (currentPointIndex + 1) % movePoints.Length;
-        }
-    }
+                while (!agent.pathPending && agent.remainingDistance > agent.stoppingDistance)
+                {
+                    yield return null;
+                }
 
-    private IEnumerator MoveTo(Vector3 targetPosition)
-    {
-        float journeyLength = Vector3.Distance(transform.position, targetPosition);
-        float startTime = Time.time;
 
-        while (transform.position != targetPosition)
-        {
-            float distCovered = (Time.time - startTime) * 1f;
-            float fracJourney = distCovered / journeyLength;
-            transform.position = Vector3.Lerp(transform.position, targetPosition, fracJourney);
+                yield return new WaitForSeconds(timeAtEachPoint);
+
+
+                currentPointIndex = (currentPointIndex + 1) % movePoints.Length;
+            }
+
             yield return null;
         }
     }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-          
+
             dialogCanvas.gameObject.SetActive(true);
             dialogText.text = "Hola, ¿cómo estás?";
 
-            StopAllCoroutines();
+
+            isPaused = true;
+            agent.isStopped = true;
         }
     }
 
@@ -63,11 +68,11 @@ public class NPCMovement : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-           
+
             dialogCanvas.gameObject.SetActive(false);
 
-          
-            StartCoroutine(MoveBetweenPoints());
+            isPaused = false;
+            agent.isStopped = false;
         }
     }
 }
